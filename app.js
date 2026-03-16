@@ -195,6 +195,23 @@ const dom = {
   tabBtns:       $$('.tab-btn'),
   bottomTabs:    $$('.bottom-tab'),
   tabPanels:     $$('.tab-panel'),
+
+  // about section interactives
+  hzRows:           $('hzRows'),
+  hzSelBtns:        $$('.hz-sel-btn'),
+  hzStatMs:         $('hzStatMs'),
+  hzStatUpdates:    $('hzStatUpdates'),
+  hzStatRating:     $('hzStatRating'),
+  dpiDemoSlider:    $('dpiDemoSlider'),
+  dpiDemoVal:       $('dpiDemoVal'),
+  dpiDemoNote:      $('dpiDemoNote'),
+  dpiDemoMouse:     $('dpiDemoMouse'),
+  dpiDemoCursor:    $('dpiDemoCursor'),
+  jitterGoodCanvas: $('jitterGoodCanvas'),
+  jitterBadCanvas:  $('jitterBadCanvas'),
+  jitterGoodRms:    $('jitterGoodRms'),
+  jitterBadRms:     $('jitterBadRms'),
+  jitterScaleFill:  $('jitterScaleFill'),
 };
 
 /* ════════════════════════════════════════════════════════════
@@ -1079,6 +1096,15 @@ function switchTab(tabName) {
 
   // Re-init canvas for newly visible panel
   setTimeout(initCanvases, 60);
+
+  // Trigger scroll reveal when about becomes active
+  if (tabName === 'about') {
+    setTimeout(() => {
+      document.querySelectorAll('#tab-about .reveal').forEach((el, i) => {
+        setTimeout(() => el.classList.add('visible'), i * 120);
+      });
+    }, 60);
+  }
 }
 
 function initTabs() {
@@ -1137,6 +1163,7 @@ function init() {
   initPollingListeners();
   initDpiListeners();
   initJitterListeners();
+  initAboutSection();
 
   dom.exportBtn.addEventListener('click', exportCsv);
 
@@ -1149,3 +1176,241 @@ function init() {
 }
 
 init();
+
+/* ════════════════════════════════════════════════════════════
+   ABOUT SECTION — Interactive explainers
+   ════════════════════════════════════════════════════════════ */
+
+/* ── SCROLL REVEAL ────────────────────────────────────────── */
+function initScrollReveal() {
+  const els = document.querySelectorAll('.reveal');
+  if (!els.length) return;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        // Stagger children slightly if they exist
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  els.forEach(el => io.observe(el));
+}
+
+/* ── HZ TIMELINE EXPLAINER ────────────────────────────────── */
+const HZ_OPTIONS = {
+  125:  { ms: '8.0',  updates: '125',   rating: 'BUDGET' },
+  250:  { ms: '4.0',  updates: '250',   rating: 'MID' },
+  500:  { ms: '2.0',  updates: '500',   rating: 'HIGH-END' },
+  1000: { ms: '1.0',  updates: '1,000', rating: 'COMPETITIVE' },
+};
+
+function buildHzDots(hz) {
+  if (!dom.hzRows) return;
+  dom.hzRows.innerHTML = '';
+  // Show 3 rows, each representing ~33ms of data
+  // At 125Hz: ~4 dots/row. At 1000Hz: ~33 dots/row
+  const dotsPerRow = Math.round(hz / 40);
+  const rows = 3;
+  for (let r = 0; r < rows; r++) {
+    const row = document.createElement('div');
+    row.className = 'hz-row';
+    for (let i = 0; i < dotsPerRow; i++) {
+      const d = document.createElement('div');
+      d.className = 'hz-dot';
+      d.style.animationDelay = `${(i * (1000 / hz) * 0.5).toFixed(0)}ms`;
+      row.appendChild(d);
+    }
+    dom.hzRows.appendChild(row);
+  }
+}
+
+function setHzSelection(hz) {
+  const info = HZ_OPTIONS[hz];
+  if (!info) return;
+  buildHzDots(hz);
+  if (dom.hzStatMs)      dom.hzStatMs.textContent      = info.ms + ' ms';
+  if (dom.hzStatUpdates) dom.hzStatUpdates.textContent = info.updates;
+  if (dom.hzStatRating)  dom.hzStatRating.textContent  = info.rating;
+  dom.hzSelBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.hz) === hz));
+}
+
+function initHzExplainer() {
+  if (!dom.hzSelBtns.length) return;
+  dom.hzSelBtns.forEach(btn => {
+    btn.addEventListener('click', () => setHzSelection(parseInt(btn.dataset.hz)));
+  });
+  setHzSelection(125);
+}
+
+/* ── DPI DEMO SLIDER ──────────────────────────────────────── */
+function initDpiDemo() {
+  if (!dom.dpiDemoSlider) return;
+
+  const notes = {
+    200:  'Very low — fine for precise work, slow cursor',
+    400:  'Low — preferred by many pro FPS players',
+    600:  'Low-mid — good balance for FPS gaming',
+    800:  'Mid-range — good balance of speed and accuracy',
+    1000: 'Mid-high — comfortable for most gaming styles',
+    1200: 'High — fast cursor, less physical movement needed',
+    1600: 'High — common default for gaming mice',
+    2000: 'Very high — tiny movements = large cursor travel',
+    2400: 'Very high — difficult to aim precisely',
+    2800: 'Extreme — minimal physical movement required',
+    3200: 'Maximum — hair-trigger sensitivity',
+  };
+
+  dom.dpiDemoSlider.addEventListener('input', () => {
+    const dpi = parseInt(dom.dpiDemoSlider.value);
+    dom.dpiDemoVal.textContent = dpi.toLocaleString();
+
+    // Mouse stays fixed on the left; cursor travels further at higher DPI
+    // Normalize: 800 DPI = cursor at 40% across the screen
+    const baseDpi   = 800;
+    const basePos   = 30;  // % from left
+    const maxTravel = 65;  // % available
+    const cursorPct = Math.min(basePos + (dpi / baseDpi - 1) * (maxTravel / 2.5), basePos + maxTravel);
+    if (dom.dpiDemoCursor) {
+      dom.dpiDemoCursor.style.left = cursorPct.toFixed(1) + '%';
+    }
+
+    // Closest note
+    const keys = Object.keys(notes).map(Number).sort((a,b)=>a-b);
+    const closest = keys.reduce((prev, curr) => Math.abs(curr - dpi) < Math.abs(prev - dpi) ? curr : prev);
+    dom.dpiDemoNote.textContent = notes[closest] || '';
+  });
+}
+
+/* ── JITTER CANVAS ANIMATIONS ─────────────────────────────── */
+let jitterAnimId = null;
+
+function animateJitterExplainers() {
+  const goodCtx = dom.jitterGoodCanvas ? dom.jitterGoodCanvas.getContext('2d') : null;
+  const badCtx  = dom.jitterBadCanvas  ? dom.jitterBadCanvas.getContext('2d')  : null;
+  if (!goodCtx || !badCtx) return;
+
+  const W = 240, H = 120;
+  // Each canvas is fixed 240×120 in HTML; scale for DPR
+  const dpr = window.devicePixelRatio || 1;
+  [dom.jitterGoodCanvas, dom.jitterBadCanvas].forEach(c => {
+    c.width  = W * dpr; c.height = H * dpr;
+    c.style.width = W + 'px'; c.style.height = H + 'px';
+    c.getContext('2d').setTransform(1,0,0,1,0,0);
+    c.getContext('2d').scale(dpr, dpr);
+  });
+
+  let t = 0;
+  // Pre-generate random noise offsets
+  const GOOD_NOISE = Array.from({length: 200}, () => (Math.random() - 0.5) * 0.6);
+  const BAD_NOISE  = Array.from({length: 200}, () => (Math.random() - 0.5) * 4.5);
+
+  let goodRmsSamples = [];
+  let badRmsSamples  = [];
+
+  function drawExplainerFrame() {
+    jitterAnimId = requestAnimationFrame(drawExplainerFrame);
+
+    // Only run if about tab is visible
+    if (state.activeTab !== 'about') return;
+
+    t = (t + 1) % 200;
+    const midY = H / 2;
+    const speed = 1.2;
+
+    // ── GOOD sensor ──
+    goodCtx.fillStyle = 'rgba(10,11,13,.35)';
+    goodCtx.fillRect(0, 0, W, H);
+    // Ideal line
+    goodCtx.beginPath();
+    goodCtx.strokeStyle = 'rgba(180,186,200,.18)';
+    goodCtx.lineWidth = 1;
+    goodCtx.setLineDash([4,6]);
+    goodCtx.moveTo(0, midY); goodCtx.lineTo(W, midY);
+    goodCtx.stroke(); goodCtx.setLineDash([]);
+
+    // Trail of last 60 points
+    const trailLen = 60;
+    for (let i = 0; i < trailLen; i++) {
+      const idx = (t - i + 200) % 200;
+      const px  = W - i * speed;
+      const py  = midY + GOOD_NOISE[idx];
+      if (px < 0) break;
+      const age = i / trailLen;
+      const r = Math.round(160 + (1-age)*40);
+      const g = Math.round(166 + (1-age)*40);
+      const b = Math.round(180 + (1-age)*40);
+      goodCtx.beginPath();
+      goodCtx.arc(px, py, 1.5, 0, Math.PI*2);
+      goodCtx.fillStyle = `rgba(${r},${g},${b},${(1-age*0.8).toFixed(2)})`;
+      goodCtx.fill();
+    }
+    // Leading dot
+    goodCtx.beginPath();
+    goodCtx.arc(W - 0, midY + GOOD_NOISE[t], 3, 0, Math.PI*2);
+    goodCtx.fillStyle = 'rgba(200,210,230,0.9)';
+    goodCtx.shadowColor = 'rgba(200,210,230,0.5)';
+    goodCtx.shadowBlur  = 6;
+    goodCtx.fill(); goodCtx.shadowBlur = 0;
+
+    // Compute live RMS for good
+    goodRmsSamples.push(Math.abs(GOOD_NOISE[t]));
+    if (goodRmsSamples.length > 30) goodRmsSamples.shift();
+    const goodRms = Math.sqrt(goodRmsSamples.reduce((s,v)=>s+v*v,0)/goodRmsSamples.length);
+    if (dom.jitterGoodRms) dom.jitterGoodRms.textContent = goodRms.toFixed(2);
+
+    // ── BAD sensor ──
+    badCtx.fillStyle = 'rgba(10,11,13,.35)';
+    badCtx.fillRect(0, 0, W, H);
+    badCtx.beginPath();
+    badCtx.strokeStyle = 'rgba(180,186,200,.18)';
+    badCtx.lineWidth = 1;
+    badCtx.setLineDash([4,6]);
+    badCtx.moveTo(0, midY); badCtx.lineTo(W, midY);
+    badCtx.stroke(); badCtx.setLineDash([]);
+
+    for (let i = 0; i < trailLen; i++) {
+      const idx = (t - i + 200) % 200;
+      const px  = W - i * speed;
+      const py  = midY + BAD_NOISE[idx];
+      if (px < 0) break;
+      const age = i / trailLen;
+      const dev = Math.abs(BAD_NOISE[idx]);
+      // Color by deviation: green-ish → orange → hot
+      const norm = Math.min(dev / 4.5, 1);
+      const cr = Math.round(100 + norm * 140);
+      const cg = Math.round(150 - norm * 110);
+      const cb = Math.round(120 - norm * 90);
+      badCtx.beginPath();
+      badCtx.arc(px, py, 2, 0, Math.PI*2);
+      badCtx.fillStyle = `rgba(${cr},${cg},${cb},${(0.9-age*0.7).toFixed(2)})`;
+      badCtx.fill();
+    }
+    badCtx.beginPath();
+    badCtx.arc(W - 0, midY + BAD_NOISE[t], 3.5, 0, Math.PI*2);
+    badCtx.fillStyle = 'rgba(220,100,70,0.9)';
+    badCtx.shadowColor = 'rgba(220,100,70,0.4)'; badCtx.shadowBlur = 8;
+    badCtx.fill(); badCtx.shadowBlur = 0;
+
+    badRmsSamples.push(Math.abs(BAD_NOISE[t]));
+    if (badRmsSamples.length > 30) badRmsSamples.shift();
+    const badRms = Math.sqrt(badRmsSamples.reduce((s,v)=>s+v*v,0)/badRmsSamples.length);
+    if (dom.jitterBadRms)  dom.jitterBadRms.textContent  = badRms.toFixed(2);
+
+    // Scale bar: fill to match bad RMS normalized to max 4px
+    if (dom.jitterScaleFill) {
+      dom.jitterScaleFill.style.width = Math.min((badRms / 4) * 100, 100).toFixed(0) + '%';
+    }
+  }
+
+  drawExplainerFrame();
+}
+
+/* ── MASTER INIT ──────────────────────────────────────────── */
+function initAboutSection() {
+  initScrollReveal();
+  initHzExplainer();
+  initDpiDemo();
+  // Start jitter animation loop — it self-throttles when about tab is inactive
+  animateJitterExplainers();
+}
