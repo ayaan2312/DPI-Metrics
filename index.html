@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="DPI Metrics — Real-time mouse polling rate, DPI calibration & sensor jitter analyzer" />
+  <title>DPI Metrics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="logo">
+      <span class="logo-bracket">[</span>
+      <span class="logo-text">DPI</span>
+      <span class="logo-accent">METRICS</span>
+      <span class="logo-bracket">]</span>
+    </div>
+    <nav class="header-nav">
+      <span class="nav-item active" data-section="dashboard">DASHBOARD</span>
+      <span class="nav-item" data-section="calibration">CALIBRATE</span>
+      <span class="nav-item" data-section="jitter">JITTER PLOT</span>
+    </nav>
+    <div class="header-status">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-label" id="statusLabel">IDLE</span>
+    </div>
+  </header>
+
+  <!-- ── MAIN CONTENT ───────────────────────────────────────── -->
+  <main class="app-shell">
+
+    <!-- SECTION: DASHBOARD -->
+    <section class="section active" id="sec-dashboard">
+
+      <!-- Tracking Zone -->
+      <div class="tracking-zone" id="trackingZone" role="region" aria-label="Mouse tracking area">
+        <div class="zone-crosshair" id="zoneCrosshair"></div>
+        <div class="zone-label">MOVE MOUSE HERE</div>
+        <div class="zone-coords" id="zoneCoords">X: — &nbsp; Y: —</div>
+      </div>
+
+      <!-- Metric Cards Row -->
+      <div class="metrics-grid">
+
+        <div class="metric-card" id="card-hz">
+          <div class="card-label">POLLING RATE</div>
+          <div class="card-value" id="metricHz"><span class="val">—</span><span class="unit">Hz</span></div>
+          <div class="card-sub" id="subHz">waiting for input…</div>
+          <canvas class="sparkline" id="sparkHz" width="180" height="40"></canvas>
+        </div>
+
+        <div class="metric-card" id="card-dpi">
+          <div class="card-label">CALIBRATED DPI</div>
+          <div class="card-value" id="metricDpi"><span class="val">—</span><span class="unit">DPI</span></div>
+          <div class="card-sub" id="subDpi">run calibration →</div>
+          <div class="card-badge" id="dpiBadge"></div>
+        </div>
+
+        <div class="metric-card" id="card-jitter">
+          <div class="card-label">SENSOR JITTER</div>
+          <div class="card-value" id="metricJitter"><span class="val">—</span><span class="unit">px</span></div>
+          <div class="card-sub" id="subJitter">RMS deviation</div>
+          <canvas class="sparkline" id="sparkJitter" width="180" height="40"></canvas>
+        </div>
+
+        <div class="metric-card" id="card-latency">
+          <div class="card-label">AVG INTERVAL</div>
+          <div class="card-value" id="metricLatency"><span class="val">—</span><span class="unit">ms</span></div>
+          <div class="card-sub" id="subLatency">between events</div>
+          <canvas class="sparkline" id="sparkLatency" width="180" height="40"></canvas>
+        </div>
+
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="stats-bar">
+        <div class="stat-item">
+          <span class="stat-lbl">PEAK Hz</span>
+          <span class="stat-val" id="statPeak">—</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-lbl">MIN Hz</span>
+          <span class="stat-val" id="statMin">—</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-lbl">SAMPLES</span>
+          <span class="stat-val" id="statSamples">0</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-lbl">DROP EVENTS</span>
+          <span class="stat-val" id="statDrops">0</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-lbl">CONSISTENCY</span>
+          <span class="stat-val" id="statConsistency">—</span>
+        </div>
+        <div class="stat-spacer"></div>
+        <button class="btn-reset" id="btnReset">RESET</button>
+      </div>
+
+    </section>
+
+    <!-- SECTION: CALIBRATION -->
+    <section class="section" id="sec-calibration">
+      <div class="calibration-wrapper">
+
+        <div class="calib-instructions" id="calibInstructions">
+          <h2 class="calib-title">DPI CALIBRATION</h2>
+          <p class="calib-desc">
+            Move your mouse <strong>exactly 1 inch</strong> (25.4 mm) horizontally — or enter a ruler distance below.<br/>
+            Click <kbd>START</kbd>, drag precisely, then release.
+          </p>
+          <div class="calib-ruler-input">
+            <label for="rulerInches">DRAG DISTANCE</label>
+            <div class="input-row">
+              <input type="number" id="rulerInches" value="1" min="0.5" max="12" step="0.1" />
+              <span class="input-unit">inch</span>
+            </div>
+          </div>
+          <button class="btn-primary" id="btnStartCalib">START CALIBRATION</button>
+        </div>
+
+        <div class="calib-active" id="calibActive" hidden>
+          <div class="calib-track-area" id="calibTrackArea">
+            <div class="calib-start-marker" id="calibStart"></div>
+            <div class="calib-end-marker"   id="calibEnd"  ></div>
+            <div class="calib-line"         id="calibLine" ></div>
+            <div class="calib-hint">CLICK & DRAG →</div>
+          </div>
+          <button class="btn-secondary" id="btnCancelCalib">CANCEL</button>
+        </div>
+
+        <div class="calib-result" id="calibResult" hidden>
+          <div class="result-icon">✓</div>
+          <div class="result-label">MEASURED DPI</div>
+          <div class="result-value" id="calibResultValue">—</div>
+          <div class="result-sub" id="calibResultSub"></div>
+          <div class="result-actions">
+            <button class="btn-primary"   id="btnAcceptCalib">ACCEPT</button>
+            <button class="btn-secondary" id="btnRetryCalib" >RETRY</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION: JITTER PLOT -->
+    <section class="section" id="sec-jitter">
+      <div class="jitter-wrapper">
+
+        <div class="jitter-controls">
+          <div class="control-group">
+            <label>TRAIL LENGTH</label>
+            <input type="range" id="trailLength" min="50" max="500" value="200" />
+            <span id="trailLengthVal">200</span>
+          </div>
+          <div class="control-group">
+            <label>ZOOM</label>
+            <input type="range" id="jitterZoom" min="1" max="20" value="8" />
+            <span id="jitterZoomVal">8×</span>
+          </div>
+          <div class="control-group">
+            <label>MODE</label>
+            <button class="btn-toggle active" id="toggleMode" data-mode="scatter">SCATTER</button>
+          </div>
+          <button class="btn-secondary" id="btnClearJitter">CLEAR</button>
+        </div>
+
+        <div class="jitter-canvas-wrapper">
+          <canvas id="jitterCanvas"></canvas>
+          <div class="jitter-overlay-stats">
+            <span id="jOverlayHz">— Hz</span>
+            <span id="jOverlayJitter">± — px</span>
+          </div>
+        </div>
+
+        <div class="jitter-legend">
+          <span class="legend-dot recent"></span>RECENT
+          <span class="legend-dot old"></span>HISTORY
+          <span class="legend-dot center"></span>CENTROID
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <span>DPI METRICS — BROWSER MOUSE ANALYZER</span>
+    <span class="footer-note">All processing is local. No data leaves your machine.</span>
+    <span id="footerFps">RAF: —fps</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
