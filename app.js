@@ -31,14 +31,21 @@ const JITTER_MAX_PTS   = 4096;
 const RAF_ALPHA        = 0.1;    // EMA smoothing for fps display
 const DROP_THRESHOLD   = 200;    // ms gap = mouse stopped
 
-const C_CYAN     = '#00f2ff';
-const C_CYAN_MID = 'rgba(0,242,255,0.45)';
-const C_CYAN_DIM = 'rgba(0,242,255,0.15)';
-const C_RED      = '#ff3b5c';
-const C_YELLOW   = '#ffe066';
-const C_WHITE50  = 'rgba(255,255,255,0.35)';
-const C_BG       = '#050505';
-const C_GRID     = 'rgba(255,255,255,0.04)';
+/* Canvas color palette — matches CSS metal+accent theme */
+const C_CYAN      = '#00d4ff';
+const C_CYAN_MID  = 'rgba(0,212,255,0.5)';
+const C_CYAN_DIM  = 'rgba(0,212,255,0.18)';
+const C_AMBER     = '#ffaa00';
+const C_AMBER_MID = 'rgba(255,170,0,0.5)';
+const C_AMBER_DIM = 'rgba(255,170,0,0.18)';
+const C_VIOLET    = '#9b6dff';
+const C_GREEN     = '#00d68f';
+const C_CORAL     = '#ff5055';
+const C_WHITE50   = 'rgba(255,255,255,0.3)';
+const C_BG        = '#080910';
+const C_GRID      = 'rgba(255,255,255,0.035)';
+const C_STEEL_HI  = 'rgba(176,188,200,0.7)';
+const C_STEEL_MID = 'rgba(130,144,160,0.5)';
 
 /* ════════════════════════════════════════════════════════════
    CIRCULAR BUFFER (fixed-size, zero GC after construction)
@@ -281,32 +288,23 @@ window.addEventListener('resize', () => {
    RULER CANVAS  — visual tick marks for calibration reference
    ════════════════════════════════════════════════════════════ */
 function drawRuler(ctx, w, h) {
-  ctx.fillStyle = '#111318';
+  ctx.fillStyle = '#0a0b0e';
   ctx.fillRect(0, 0, w, h);
-
-  // Draw inch tick marks with major/minor divisions
-  const dpr = window.devicePixelRatio || 1;
-  // We draw logical pixel ticks — the user aligns their physical ruler alongside
-  const ticksPerInch = 8;
-  const pixelsPerTick = 16; // visual separation between minor ticks
-
-  ctx.fillStyle   = C_CYAN_DIM;
-  ctx.strokeStyle = 'rgba(0,242,255,0.3)';
-  ctx.font = '9px "Share Tech Mono", monospace';
-  ctx.fillStyle = 'rgba(0,242,255,0.4)';
-
+  const pixelsPerTick = 16;
+  const ticksPerInch  = 8;
   for (let px = 0; px < w; px += pixelsPerTick) {
-    const isInch  = px % (pixelsPerTick * ticksPerInch) === 0;
-    const isHalf  = px % (pixelsPerTick * 4) === 0;
-    const tickH   = isInch ? h * .7 : isHalf ? h * .45 : h * .25;
-    ctx.strokeStyle = isInch ? 'rgba(0,242,255,0.5)' : 'rgba(0,242,255,0.2)';
+    const isInch = px % (pixelsPerTick * ticksPerInch) === 0;
+    const isHalf = px % (pixelsPerTick * 4) === 0;
+    const tickH  = isInch ? h * .72 : isHalf ? h * .46 : h * .26;
+    ctx.strokeStyle = isInch ? C_AMBER_MID : C_AMBER_DIM;
     ctx.lineWidth   = isInch ? 1.5 : 1;
     ctx.beginPath();
     ctx.moveTo(px, h);
     ctx.lineTo(px, h - tickH);
     ctx.stroke();
     if (isInch && px > 0) {
-      ctx.fillStyle = 'rgba(0,242,255,0.5)';
+      ctx.fillStyle = C_AMBER_MID;
+      ctx.font = '9px "Share Tech Mono", monospace';
       ctx.fillText(String(px / (pixelsPerTick * ticksPerInch)), px + 2, h - 2);
     }
   }
@@ -454,39 +452,37 @@ function renderPollingChart(ctx, w, h) {
   ctx.fillStyle = C_BG;
   ctx.fillRect(0, 0, w, h);
 
-  // Grid lines
+  // Subtle grid
   ctx.strokeStyle = C_GRID;
   ctx.lineWidth = 1;
   [1000, 750, 500, 250].forEach(hz => {
     const y = h - (hz / 1000) * h;
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
   });
-
   // 1000Hz dashed reference
-  ctx.strokeStyle = 'rgba(0,242,255,0.07)';
+  ctx.strokeStyle = 'rgba(0,212,255,0.06)';
   ctx.setLineDash([4, 6]);
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(w, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(w, 1); ctx.stroke();
   ctx.setLineDash([]);
 
   if (state.hzHistory.every(v => v === 0)) return;
-
   const barW = w / HISTORY_SAMPLES;
 
   for (let i = 0; i < HISTORY_SAMPLES; i++) {
     const raw = (state.hzHistIdx + i) % HISTORY_SAMPLES;
     const hz  = state.hzHistory[raw];
     if (!hz) continue;
-
     const barH = (hz / 1000) * h;
-    const color = hz >= 900 ? C_CYAN :
-                  hz >= 500 ? 'rgba(0,242,255,.6)' :
-                  hz >= 125 ? 'rgba(255,224,102,.7)' :
-                              'rgba(255,59,92,.7)';
+    /* Color tiers matching CSS: cyan=great, green=good, amber=mid, coral=low */
+    const color = hz >= 900 ? 'rgba(0,212,255,.75)'   :
+                  hz >= 480 ? 'rgba(0,214,143,.65)'   :
+                  hz >= 230 ? 'rgba(255,170,0,.65)'   :
+                              'rgba(255,80,85,.65)';
     ctx.fillStyle = color;
     ctx.fillRect(i * barW + 1, h - barH, Math.max(barW - 2, 1), barH);
   }
 
-  // Smooth overlay line
+  // Overlay line
   ctx.beginPath();
   ctx.strokeStyle = C_CYAN_MID;
   ctx.lineWidth   = 1.5;
@@ -495,8 +491,7 @@ function renderPollingChart(ctx, w, h) {
     const raw = (state.hzHistIdx + i) % HISTORY_SAMPLES;
     const hz  = state.hzHistory[raw];
     if (!hz) continue;
-    const x = (i + .5) * barW;
-    const y = h - (hz / 1000) * h;
+    const x = (i + .5) * barW, y = h - (hz / 1000) * h;
     started ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), started = true);
   }
   ctx.stroke();
@@ -506,88 +501,60 @@ function renderPollingChart(ctx, w, h) {
    RENDER — DPI CALIBRATION CANVAS
    ════════════════════════════════════════════════════════════ */
 function renderDpiCanvas(ctx, w, h) {
-  ctx.fillStyle = '#0a0a0a';
+  ctx.fillStyle = C_BG;
   ctx.fillRect(0, 0, w, h);
-
-  // Grid
   ctx.strokeStyle = C_GRID;
   ctx.lineWidth = 1;
-  for (let x = 0; x < w; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  for (let y = 0; y < h; y += 40) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-  }
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
 
   if (!state.isDragging && state.dragPixels === 0) return;
 
-  const sx   = state.dragStartX;
-  const sy   = state.dragStartY;
-  const ex   = state.isDragging ? state.dragCurrentX : state.dragEndX;
-  const ey   = state.isDragging ? state.dragCurrentY : state.dragEndY;
+  const sx  = state.dragStartX;
+  const sy  = state.dragStartY;
+  const ex  = state.isDragging ? state.dragCurrentX : state.dragEndX;
+  const ey  = state.isDragging ? state.dragCurrentY : state.dragEndY;
   const midY = h / 2;
 
-  // Projected horizontal line (mid-canvas)
   if (ex !== sx) {
+    // Gradient measurement line — amber themed
     const grad = ctx.createLinearGradient(sx, 0, ex, 0);
-    grad.addColorStop(0, C_CYAN_MID);
-    grad.addColorStop(1, C_CYAN);
-    ctx.beginPath();
-    ctx.moveTo(sx, midY);
-    ctx.lineTo(ex, midY);
-    ctx.strokeStyle = grad;
-    ctx.lineWidth   = 2;
-    ctx.stroke();
+    grad.addColorStop(0, C_AMBER_DIM);
+    grad.addColorStop(1, C_AMBER);
+    ctx.beginPath(); ctx.moveTo(sx, midY); ctx.lineTo(ex, midY);
+    ctx.strokeStyle = grad; ctx.lineWidth = 2.5; ctx.stroke();
 
-    // Pixel label
+    // Pixel count label
     const pixels = Math.abs(ex - sx);
-    ctx.fillStyle  = C_CYAN;
-    ctx.font       = '11px "Share Tech Mono", monospace';
+    ctx.fillStyle  = C_AMBER;
+    ctx.font       = '12px "Share Tech Mono", monospace';
     ctx.textAlign  = 'center';
     ctx.fillText(`${Math.round(pixels)} px`, (sx + ex) / 2, midY - 22);
 
     // Tick marks
-    ctx.strokeStyle = C_CYAN_DIM;
-    ctx.lineWidth   = 1;
+    ctx.strokeStyle = C_AMBER_DIM; ctx.lineWidth = 1.5;
     [sx, ex].forEach(xp => {
-      ctx.beginPath();
-      ctx.moveTo(xp, midY - 12);
-      ctx.lineTo(xp, midY + 12);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xp, midY - 14); ctx.lineTo(xp, midY + 14); ctx.stroke();
     });
 
-    // Actual drag line (shows diagonal if any)
+    // Diagonal indicator (yellow warning)
     if (Math.abs(ey - sy) > 5) {
-      ctx.beginPath();
-      ctx.moveTo(sx, sy);
-      ctx.lineTo(ex, ey);
-      ctx.strokeStyle = 'rgba(255,224,102,0.4)';
-      ctx.lineWidth   = 1;
-      ctx.setLineDash([3, 5]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+      ctx.strokeStyle = 'rgba(255,200,0,0.35)'; ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]); ctx.stroke(); ctx.setLineDash([]);
     }
 
     // End dot
-    ctx.beginPath();
-    ctx.arc(ex, midY, 5, 0, Math.PI * 2);
-    ctx.fillStyle = state.isDragging ? 'rgba(0,242,255,.5)' : C_CYAN;
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(ex, midY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = state.isDragging ? C_AMBER_DIM : C_AMBER; ctx.fill();
   }
 
-  // Start dot
-  ctx.beginPath();
-  ctx.arc(sx, midY, 6, 0, Math.PI * 2);
-  ctx.fillStyle = C_CYAN;
-  ctx.shadowColor = C_CYAN;
-  ctx.shadowBlur  = 10;
-  ctx.fill();
-  ctx.shadowBlur  = 0;
-  ctx.beginPath();
-  ctx.arc(sx, midY, 13, 0, Math.PI * 2);
-  ctx.strokeStyle = C_CYAN_DIM;
-  ctx.lineWidth   = 1;
-  ctx.stroke();
+  // Start dot with glow
+  ctx.beginPath(); ctx.arc(sx, midY, 7, 0, Math.PI * 2);
+  ctx.fillStyle = C_AMBER;
+  ctx.shadowColor = C_AMBER; ctx.shadowBlur = 12; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(sx, midY, 14, 0, Math.PI * 2);
+  ctx.strokeStyle = C_AMBER_DIM; ctx.lineWidth = 1; ctx.stroke();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -595,19 +562,12 @@ function renderDpiCanvas(ctx, w, h) {
    [FIX-5] heatmap mode fully implemented
    ════════════════════════════════════════════════════════════ */
 function renderJitterPlot(ctx, w, h) {
-  // Trail effect: partial clear
-  ctx.fillStyle = 'rgba(5,5,5,0.35)';
+  ctx.fillStyle = 'rgba(8,9,16,0.38)';
   ctx.fillRect(0, 0, w, h);
 
-  // Grid
-  ctx.strokeStyle = C_GRID;
-  ctx.lineWidth   = 1;
-  for (let x = 0; x < w; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-  }
-  for (let y = 0; y < h; y += 40) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-  }
+  ctx.strokeStyle = C_GRID; ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
 
   const trail = Math.min(state.jitterTrailLen, state.jitterCount);
   if (trail < 2) return;
@@ -616,111 +576,71 @@ function renderJitterPlot(ctx, w, h) {
   const pts   = state.jitterPts;
   const head  = state.jitterHead;
   const total = JITTER_MAX_PTS;
-  const cx    = w / 2, cy = h / 2;
+  const cx = w / 2, cy = h / 2;
 
   const getXY = n => {
     const i = ((head - 1 - n + total * 2) % total) * 2;
     return [pts[i], pts[i + 1]];
   };
 
-  // Anchor at midpoint of trail to keep centred
   const [anchorX, anchorY] = getXY(Math.floor(trail / 2));
-  const toScreen = (px, py) => [
-    cx + (px - anchorX) * zoom,
-    cy + (py - anchorY) * zoom,
-  ];
+  const toScreen = (px, py) => [cx + (px - anchorX) * zoom, cy + (py - anchorY) * zoom];
 
-  // Ideal line: oldest → newest
+  // Ideal line
   let idealPath = null;
   if (state.showIdeal && trail >= 2) {
-    const [ax, ay] = getXY(trail - 1);
-    const [bx, by] = getXY(0);
-    const [sax, say] = toScreen(ax, ay);
-    const [sbx, sby] = toScreen(bx, by);
-    ctx.beginPath();
-    ctx.moveTo(sax, say);
-    ctx.lineTo(sbx, sby);
-    ctx.strokeStyle = C_WHITE50;
-    ctx.lineWidth   = 1;
-    ctx.setLineDash([4, 6]);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    idealPath = {
-      ax, ay, bx, by,
-      len: Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2)
-    };
+    const [ax, ay] = getXY(trail - 1), [bx, by] = getXY(0);
+    const [sax, say] = toScreen(ax, ay), [sbx, sby] = toScreen(bx, by);
+    ctx.beginPath(); ctx.moveTo(sax, say); ctx.lineTo(sbx, sby);
+    ctx.strokeStyle = C_WHITE50; ctx.lineWidth = 1; ctx.setLineDash([4,6]); ctx.stroke(); ctx.setLineDash([]);
+    idealPath = { ax, ay, bx, by, len: Math.sqrt((bx-ax)**2+(by-ay)**2) };
   }
 
-  const getDeviation = (px, py) => {
+  const getDev = (px, py) => {
     if (!idealPath || idealPath.len < 0.01) return 0;
     const { ax, ay, bx, by, len } = idealPath;
-    return Math.abs((px - ax) * (by - ay) - (py - ay) * (bx - ax)) / len;
+    return Math.abs((px-ax)*(by-ay)-(py-ay)*(bx-ax))/len;
   };
 
-  // Actual path line
-  ctx.beginPath();
-  let first = true;
+  // Path line — violet
+  ctx.beginPath(); let first = true;
   for (let i = trail - 1; i >= 0; i--) {
-    const [px, py] = getXY(i);
-    const [sx, sy] = toScreen(px, py);
-    first ? (ctx.moveTo(sx, sy), first = false) : ctx.lineTo(sx, sy);
+    const [px, py] = getXY(i), [sx, sy] = toScreen(px, py);
+    first ? (ctx.moveTo(sx,sy), first=false) : ctx.lineTo(sx, sy);
   }
-  ctx.strokeStyle = 'rgba(0,242,255,0.4)';
-  ctx.lineWidth   = 1.5;
-  ctx.stroke();
+  ctx.strokeStyle = 'rgba(155,109,255,0.45)'; ctx.lineWidth = 1.5; ctx.stroke();
 
-  // Scatter dots — [FIX-5] heatmap coloring fully implemented
+  // Scatter dots
   for (let i = 0; i < trail; i++) {
-    const [px, py]  = getXY(i);
-    const [sx, sy]  = toScreen(px, py);
-    const age  = i / trail;  // 0=newest, 1=oldest
-    const dev  = getDeviation(px, py);
-
+    const [px, py] = getXY(i), [sx, sy] = toScreen(px, py);
+    const age = i / trail;
+    const dev = getDev(px, py);
     let r, g, b, a;
     if (state.showHeatmap) {
-      // Heatmap: cyan (low deviation) → yellow → red (high deviation)
       const t = Math.min(dev / 2.5, 1);
       if (t < 0.5) {
-        // cyan → yellow
         const s = t * 2;
-        r = Math.round(s * 255);
-        g = Math.round(242 - s * (242 - 224));
-        b = Math.round(255 - s * 255);
+        r = Math.round(155 - s * 60); g = Math.round(109 + s * 100); b = Math.round(255 - s * 150);
       } else {
-        // yellow → red
         const s = (t - 0.5) * 2;
-        r = 255;
-        g = Math.round(224 - s * 224);
-        b = 0;
+        r = Math.round(200 + s * 55); g = Math.round(180 - s * 130); b = Math.round(100 - s * 80);
       }
       a = (0.9 - age * 0.6).toFixed(2);
     } else {
-      // Default: cyan with age fade
-      r = 0; g = 242; b = 255;
-      a = (0.9 - age * 0.7).toFixed(2);
+      // violet age fade
+      r = 155; g = 109; b = 255;
+      a = (0.88 - age * 0.72).toFixed(2);
     }
-
-    ctx.beginPath();
-    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${a})`; ctx.fill();
   }
 
-  // Newest point: bright highlight
-  const [nx, ny]   = getXY(0);
-  const [nsx, nsy] = toScreen(nx, ny);
-  ctx.beginPath();
-  ctx.arc(nsx, nsy, 4.5, 0, Math.PI * 2);
-  ctx.fillStyle   = C_CYAN;
-  ctx.shadowColor = C_CYAN;
-  ctx.shadowBlur  = 12;
-  ctx.fill();
-  ctx.shadowBlur  = 0;
-  ctx.beginPath();
-  ctx.arc(nsx, nsy, 9, 0, Math.PI * 2);
-  ctx.strokeStyle = C_CYAN_DIM;
-  ctx.lineWidth   = 1;
-  ctx.stroke();
+  // Newest point — bright violet glow
+  const [nx, ny] = getXY(0), [nsx, nsy] = toScreen(nx, ny);
+  ctx.beginPath(); ctx.arc(nsx, nsy, 4.5, 0, Math.PI * 2);
+  ctx.fillStyle = C_VIOLET; ctx.shadowColor = C_VIOLET; ctx.shadowBlur = 14; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(nsx, nsy, 9, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(155,109,255,0.2)'; ctx.lineWidth = 1; ctx.stroke();
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -740,20 +660,20 @@ function updatePollingUI() {
       state.eventsPerSec > 0 ? state.eventsPerSec : '—');
     prevHz = hz;
 
-    // Hz colour
-    dom.hzValue.style.color =
-      hz >= 900 ? 'var(--cyan)' :
-      hz >= 480 ? 'var(--green)' :
-      hz >= 230 ? 'var(--yellow)' :
-      hz >= 50  ? 'var(--red)' : '';
+    // Use CSS classes for color — no broken inline var() references
+    const hv = dom.hzValue;
+    hv.classList.remove('hz-great','hz-good','hz-mid','hz-low');
+    if      (hz >= 900) hv.classList.add('hz-great');
+    else if (hz >= 480) hv.classList.add('hz-good');
+    else if (hz >= 230) hv.classList.add('hz-mid');
+    else if (hz >= 50)  hv.classList.add('hz-low');
 
-    // Sub-label
     dom.hzSub.textContent =
-      hz >= 950 ? '1000 Hz — flagship' :
-      hz >= 480 ? '500 Hz — high-end' :
-      hz >= 230 ? '250 Hz — mid-range' :
-      hz >= 110 ? '125 Hz — budget USB' :
-      hz > 0    ? 'Measuring…' : 'Move your mouse to begin';
+      hz >= 950 ? '1000 Hz — flagship'    :
+      hz >= 480 ? '500 Hz — high-end'     :
+      hz >= 230 ? '250 Hz — mid-range'    :
+      hz >= 110 ? '125 Hz — budget USB'   :
+      hz >  0   ? 'Measuring…'            : 'Move your mouse to begin';
   }
 
   if (state.peakHz !== prevPeak) {
@@ -761,14 +681,13 @@ function updatePollingUI() {
     prevPeak = state.peakHz;
   }
 
-  // Status dot
   dom.statusDot.className   = stale ? 'status-dot' : 'status-dot active';
   dom.statusLabel.textContent =
-    stale ? 'IDLE' :
-    hz >= 900 ? '1000Hz' :
-    hz >= 480 ? '500Hz'  :
-    hz >= 230 ? '250Hz'  :
-    hz >= 120 ? '125Hz'  : 'ACTIVE';
+    stale       ? 'IDLE'   :
+    hz >= 900   ? '1000Hz' :
+    hz >= 480   ? '500Hz'  :
+    hz >= 230   ? '250Hz'  :
+    hz >= 120   ? '125Hz'  : 'ACTIVE';
 }
 
 function setMetric(el, val) {
@@ -1010,7 +929,7 @@ function resetDpi() {
   dom.diagWarning.hidden       = true;
   dom.dpiHistory.innerHTML     = '';
   const { w, h } = getCSSSize(dom.dpiCanvas);
-  dpiCtx.fillStyle = '#0a0a0a';
+  dpiCtx.fillStyle = C_BG;  // fixed: was '#0a0a0a'
   dpiCtx.fillRect(0, 0, w, h);
 }
 
@@ -1025,7 +944,7 @@ function initJitterListeners() {
     dom.jitterRms.textContent = dom.jitterMax.textContent = dom.jitterSmooth.textContent = '—';
     dom.jitterHint.classList.remove('hidden');
     const { w, h } = getCSSSize(dom.jitterCanvas);
-    jitterCtx.fillStyle = C_BG;
+    jitterCtx.fillStyle = C_BG;  // fixed: was old #050505
     jitterCtx.fillRect(0, 0, w, h);
   });
 
@@ -1317,40 +1236,32 @@ function animateJitterExplainers() {
     t = (t + 1) % 200;
     const midY = H / 2;
     const speed = 1.2;
+    const trailLen = 60;  // number of trail points to draw
 
-    // ── GOOD sensor ──
-    goodCtx.fillStyle = 'rgba(10,11,13,.35)';
+    // ── GOOD sensor — steel/cyan trail ──
+    goodCtx.fillStyle = 'rgba(8,9,16,.38)';
     goodCtx.fillRect(0, 0, W, H);
-    // Ideal line
     goodCtx.beginPath();
-    goodCtx.strokeStyle = 'rgba(180,186,200,.18)';
-    goodCtx.lineWidth = 1;
-    goodCtx.setLineDash([4,6]);
+    goodCtx.strokeStyle = 'rgba(180,190,210,.15)';
+    goodCtx.lineWidth = 1; goodCtx.setLineDash([4,6]);
     goodCtx.moveTo(0, midY); goodCtx.lineTo(W, midY);
     goodCtx.stroke(); goodCtx.setLineDash([]);
 
-    // Trail of last 60 points
-    const trailLen = 60;
     for (let i = 0; i < trailLen; i++) {
       const idx = (t - i + 200) % 200;
-      const px  = W - i * speed;
-      const py  = midY + GOOD_NOISE[idx];
+      const px  = W - i * speed, py = midY + GOOD_NOISE[idx];
       if (px < 0) break;
       const age = i / trailLen;
-      const r = Math.round(160 + (1-age)*40);
-      const g = Math.round(166 + (1-age)*40);
-      const b = Math.round(180 + (1-age)*40);
-      goodCtx.beginPath();
-      goodCtx.arc(px, py, 1.5, 0, Math.PI*2);
-      goodCtx.fillStyle = `rgba(${r},${g},${b},${(1-age*0.8).toFixed(2)})`;
-      goodCtx.fill();
+      // Cyan-to-teal age fade
+      const cr = Math.round(0   + (1-age)*20);
+      const cg = Math.round(180 + (1-age)*32);
+      const cb = Math.round(220 + (1-age)*35);
+      goodCtx.beginPath(); goodCtx.arc(px, py, 1.5, 0, Math.PI*2);
+      goodCtx.fillStyle = `rgba(${cr},${cg},${cb},${(1-age*0.82).toFixed(2)})`; goodCtx.fill();
     }
-    // Leading dot
-    goodCtx.beginPath();
-    goodCtx.arc(W - 0, midY + GOOD_NOISE[t], 3, 0, Math.PI*2);
-    goodCtx.fillStyle = 'rgba(200,210,230,0.9)';
-    goodCtx.shadowColor = 'rgba(200,210,230,0.5)';
-    goodCtx.shadowBlur  = 6;
+    goodCtx.beginPath(); goodCtx.arc(W, midY + GOOD_NOISE[t], 3, 0, Math.PI*2);
+    goodCtx.fillStyle = '#00d4ff';
+    goodCtx.shadowColor = 'rgba(0,212,255,.55)'; goodCtx.shadowBlur = 8;
     goodCtx.fill(); goodCtx.shadowBlur = 0;
 
     // Compute live RMS for good
@@ -1359,13 +1270,12 @@ function animateJitterExplainers() {
     const goodRms = Math.sqrt(goodRmsSamples.reduce((s,v)=>s+v*v,0)/goodRmsSamples.length);
     if (dom.jitterGoodRms) dom.jitterGoodRms.textContent = goodRms.toFixed(2);
 
-    // ── BAD sensor ──
-    badCtx.fillStyle = 'rgba(10,11,13,.35)';
+    // ── BAD sensor — coral/hot trail ──
+    badCtx.fillStyle = 'rgba(8,9,16,.38)';
     badCtx.fillRect(0, 0, W, H);
     badCtx.beginPath();
-    badCtx.strokeStyle = 'rgba(180,186,200,.18)';
-    badCtx.lineWidth = 1;
-    badCtx.setLineDash([4,6]);
+    badCtx.strokeStyle = 'rgba(180,190,210,.15)';
+    badCtx.lineWidth = 1; badCtx.setLineDash([4,6]);
     badCtx.moveTo(0, midY); badCtx.lineTo(W, midY);
     badCtx.stroke(); badCtx.setLineDash([]);
 
@@ -1388,8 +1298,8 @@ function animateJitterExplainers() {
     }
     badCtx.beginPath();
     badCtx.arc(W - 0, midY + BAD_NOISE[t], 3.5, 0, Math.PI*2);
-    badCtx.fillStyle = 'rgba(220,100,70,0.9)';
-    badCtx.shadowColor = 'rgba(220,100,70,0.4)'; badCtx.shadowBlur = 8;
+    badCtx.fillStyle = '#ff5055';
+    badCtx.shadowColor = 'rgba(255,80,85,0.5)'; badCtx.shadowBlur = 10;
     badCtx.fill(); badCtx.shadowBlur = 0;
 
     badRmsSamples.push(Math.abs(BAD_NOISE[t]));
