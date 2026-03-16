@@ -2,203 +2,433 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="DPI Metrics — Real-time mouse polling rate, DPI calibration & sensor jitter analyzer" />
-  <title>DPI Metrics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- SEO -->
+  <title>DPI Metrics — Free Mouse Polling Rate, DPI & Jitter Tester</title>
+  <meta name="description" content="Test your mouse polling rate (Hz), calibrate DPI accurately, and visualize sensor jitter — free, browser-based, no install required. Works with any gaming mouse." />
+  <link rel="canonical" href="https://dpimetrics.com/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://dpimetrics.com/" />
+  <meta property="og:title"       content="DPI Metrics — Mouse Polling Rate & DPI Tester" />
+  <meta property="og:description" content="Measure your mouse polling rate in Hz, calibrate DPI, and see live sensor jitter — all in your browser. Free, instant, no download." />
+  <meta property="og:image"       content="https://dpimetrics.com/og-image.png" />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="DPI Metrics — Mouse Polling Rate & DPI Tester" />
+  <meta name="twitter:description" content="Free browser tool: test polling rate Hz, calibrate DPI, visualize jitter. Works with any gaming mouse." />
+  <meta name="twitter:image"       content="https://dpimetrics.com/og-image.png" />
+
+  <!-- PWA / Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#050505" />
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "DPI Metrics",
+    "url": "https://dpimetrics.com/",
+    "description": "Browser-based mouse performance analyzer. Measure polling rate (Hz), calibrate DPI, and visualize sensor jitter in real time.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- ── HEADER ─────────────────────────────────────────────── -->
-  <header class="site-header">
-    <div class="logo">
-      <span class="logo-bracket">[</span>
-      <span class="logo-text">DPI</span>
-      <span class="logo-accent">METRICS</span>
-      <span class="logo-bracket">]</span>
+  <!-- Accessibility: skip link -->
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <!-- Scanlines overlay (reduced opacity) -->
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <!-- HUD corner decorations -->
+  <div class="hud-frame" aria-hidden="true">
+    <span class="corner tl"></span>
+    <span class="corner tr"></span>
+    <span class="corner bl"></span>
+    <span class="corner br"></span>
+  </div>
+
+  <!-- ── ONBOARDING OVERLAY ──────────────────────────────────── -->
+  <div class="onboarding-overlay" id="onboardingOverlay" role="dialog" aria-modal="true" aria-label="Welcome to DPI Metrics">
+    <div class="onboarding-card">
+      <div class="onboarding-logo">
+        <span class="logo-icon" aria-hidden="true">⬡</span>
+        <span>DPI<em>METRICS</em></span>
+      </div>
+      <h1 class="onboarding-title">Mouse Performance Analyzer</h1>
+      <p class="onboarding-desc">Measure what your mouse is actually doing — polling rate, DPI accuracy, and sensor jitter — live in your browser.</p>
+      <div class="onboarding-steps">
+        <div class="ob-step">
+          <span class="ob-num">01</span>
+          <div>
+            <strong>Polling Rate</strong>
+            <p>Move your mouse in the capture zone to measure how many times per second it reports its position.</p>
+          </div>
+        </div>
+        <div class="ob-step">
+          <span class="ob-num">02</span>
+          <div>
+            <strong>DPI Calibration</strong>
+            <p>Click and drag a known physical distance (e.g. 1 inch on a ruler) to calculate your exact DPI.</p>
+          </div>
+        </div>
+        <div class="ob-step">
+          <span class="ob-num">03</span>
+          <div>
+            <strong>Jitter Plot</strong>
+            <p>Draw a straight line to see how much your sensor deviates from the ideal path.</p>
+          </div>
+        </div>
+      </div>
+      <button class="primary-btn onboarding-cta" id="onboardingStart">START MEASURING</button>
+      <label class="ob-skip-label">
+        <input type="checkbox" id="skipOnboarding" />
+        Don't show again
+      </label>
     </div>
-    <nav class="header-nav">
-      <span class="nav-item active" data-section="dashboard">DASHBOARD</span>
-      <span class="nav-item" data-section="calibration">CALIBRATE</span>
-      <span class="nav-item" data-section="jitter">JITTER PLOT</span>
+  </div>
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <header class="site-header" role="banner">
+    <div class="logo" aria-label="DPI Metrics">
+      <span class="logo-icon" aria-hidden="true">⬡</span>
+      <span class="logo-text">DPI<em>METRICS</em></span>
+    </div>
+
+    <!-- Desktop nav -->
+    <nav class="tab-nav desktop-nav" role="tablist" aria-label="Tool sections">
+      <button class="tab-btn active" role="tab" data-tab="polling" aria-selected="true"  aria-controls="tab-polling">POLLING RATE</button>
+      <button class="tab-btn"        role="tab" data-tab="dpi"     aria-selected="false" aria-controls="tab-dpi">DPI CAL</button>
+      <button class="tab-btn"        role="tab" data-tab="jitter"  aria-selected="false" aria-controls="tab-jitter">JITTER PLOT</button>
+      <button class="tab-btn"        role="tab" data-tab="about"   aria-selected="false" aria-controls="tab-about">ABOUT</button>
     </nav>
-    <div class="header-status">
-      <span class="status-dot" id="statusDot"></span>
-      <span class="status-label" id="statusLabel">IDLE</span>
+
+    <div class="header-right">
+      <div class="header-status">
+        <span class="status-dot" id="statusDot" aria-hidden="true"></span>
+        <span class="status-label" id="statusLabel" aria-live="polite">IDLE</span>
+      </div>
+      <!-- Export button -->
+      <button class="ghost-btn export-btn" id="exportBtn" title="Export session data as CSV" aria-label="Export data as CSV">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        EXPORT
+      </button>
     </div>
   </header>
 
-  <!-- ── MAIN CONTENT ───────────────────────────────────────── -->
-  <main class="app-shell">
+  <!-- ── MAIN ───────────────────────────────────────────────── -->
+  <main class="main-content" id="main-content">
 
-    <!-- SECTION: DASHBOARD -->
-    <section class="section active" id="sec-dashboard">
+    <!-- ── POLLING RATE PANEL ──────────────────────────────── -->
+    <section class="tab-panel active" id="tab-polling" role="tabpanel" aria-labelledby="tab-btn-polling">
 
-      <!-- Tracking Zone -->
-      <div class="tracking-zone" id="trackingZone" role="region" aria-label="Mouse tracking area">
-        <div class="zone-crosshair" id="zoneCrosshair"></div>
-        <div class="zone-label">MOVE MOUSE HERE</div>
-        <div class="zone-coords" id="zoneCoords">X: — &nbsp; Y: —</div>
+      <div class="metrics-row">
+        <div class="metric-card glow-card" id="card-hz">
+          <div class="metric-label">POLLING RATE</div>
+          <div class="metric-value" id="hzValue" aria-live="polite" aria-atomic="true">—</div>
+          <div class="metric-unit">Hz</div>
+          <div class="metric-sub" id="hzSub">Move your mouse to begin</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">AVG INTERVAL</div>
+          <div class="metric-value" id="intervalValue" aria-live="polite">—</div>
+          <div class="metric-unit">ms</div>
+          <div class="metric-sub">Between events</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">PEAK Hz</div>
+          <div class="metric-value" id="peakHzValue" aria-live="polite">—</div>
+          <div class="metric-unit">Hz</div>
+          <div class="metric-sub">Session maximum</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">EVENTS / SEC</div>
+          <div class="metric-value" id="eventsValue" aria-live="polite">—</div>
+          <div class="metric-unit">eps</div>
+          <div class="metric-sub">Coalesced events</div>
+        </div>
       </div>
 
-      <!-- Metric Cards Row -->
-      <div class="metrics-grid">
-
-        <div class="metric-card" id="card-hz">
-          <div class="card-label">POLLING RATE</div>
-          <div class="card-value" id="metricHz"><span class="val">—</span><span class="unit">Hz</span></div>
-          <div class="card-sub" id="subHz">waiting for input…</div>
-          <canvas class="sparkline" id="sparkHz" width="180" height="40"></canvas>
+      <div class="chart-wrapper">
+        <div class="chart-header">
+          <span class="chart-title">POLLING RATE HISTORY <span class="chart-hint">— last 120 samples</span></span>
+          <button class="ghost-btn" id="resetPolling" aria-label="Reset polling data">RESET</button>
         </div>
-
-        <div class="metric-card" id="card-dpi">
-          <div class="card-label">CALIBRATED DPI</div>
-          <div class="card-value" id="metricDpi"><span class="val">—</span><span class="unit">DPI</span></div>
-          <div class="card-sub" id="subDpi">run calibration →</div>
-          <div class="card-badge" id="dpiBadge"></div>
+        <div class="canvas-container">
+          <canvas id="pollingCanvas" class="chart-canvas" role="img" aria-label="Polling rate history chart — bar chart showing recent Hz readings"></canvas>
+          <div class="chart-axis-y" aria-hidden="true">
+            <span>1000</span><span>750</span><span>500</span><span>250</span><span>0</span>
+          </div>
         </div>
-
-        <div class="metric-card" id="card-jitter">
-          <div class="card-label">SENSOR JITTER</div>
-          <div class="card-value" id="metricJitter"><span class="val">—</span><span class="unit">px</span></div>
-          <div class="card-sub" id="subJitter">RMS deviation</div>
-          <canvas class="sparkline" id="sparkJitter" width="180" height="40"></canvas>
-        </div>
-
-        <div class="metric-card" id="card-latency">
-          <div class="card-label">AVG INTERVAL</div>
-          <div class="card-value" id="metricLatency"><span class="val">—</span><span class="unit">ms</span></div>
-          <div class="card-sub" id="subLatency">between events</div>
-          <canvas class="sparkline" id="sparkLatency" width="180" height="40"></canvas>
-        </div>
-
       </div>
 
-      <!-- Stats Bar -->
-      <div class="stats-bar">
-        <div class="stat-item">
-          <span class="stat-lbl">PEAK Hz</span>
-          <span class="stat-val" id="statPeak">—</span>
+      <div class="capture-zone" id="pollingZone" tabindex="0"
+           role="region" aria-label="Mouse capture zone — move your mouse here to measure polling rate">
+        <div class="capture-inner" id="captureInner">
+          <span class="capture-icon" aria-hidden="true">⊕</span>
+          <p>MOVE MOUSE HERE</p>
+          <small>Keep your cursor in this zone for accurate readings</small>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-lbl">MIN Hz</span>
-          <span class="stat-val" id="statMin">—</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-lbl">SAMPLES</span>
-          <span class="stat-val" id="statSamples">0</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-lbl">DROP EVENTS</span>
-          <span class="stat-val" id="statDrops">0</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-lbl">CONSISTENCY</span>
-          <span class="stat-val" id="statConsistency">—</span>
-        </div>
-        <div class="stat-spacer"></div>
-        <button class="btn-reset" id="btnReset">RESET</button>
+        <!-- Live crosshair dot (CSS positioned) -->
+        <div class="cursor-trail" id="cursorTrail" aria-hidden="true"></div>
+      </div>
+
+      <div class="notice-bar" role="note">
+        <span class="notice-icon" aria-hidden="true">⚠</span>
+        <span>Browsers batch <code>mousemove</code> events per display frame. <code>getCoalescedEvents()</code> is used on Chromium for sub-frame precision. Max measurable: ~1000 Hz (Chromium), ~500 Hz (Firefox). Keep tab focused.</span>
       </div>
 
     </section>
 
-    <!-- SECTION: CALIBRATION -->
-    <section class="section" id="sec-calibration">
-      <div class="calibration-wrapper">
+    <!-- ── DPI CALIBRATION PANEL ───────────────────────────── -->
+    <section class="tab-panel" id="tab-dpi" role="tabpanel" aria-labelledby="tab-btn-dpi" hidden>
 
-        <div class="calib-instructions" id="calibInstructions">
-          <h2 class="calib-title">DPI CALIBRATION</h2>
-          <p class="calib-desc">
-            Move your mouse <strong>exactly 1 inch</strong> (25.4 mm) horizontally — or enter a ruler distance below.<br/>
-            Click <kbd>START</kbd>, drag precisely, then release.
-          </p>
-          <div class="calib-ruler-input">
-            <label for="rulerInches">DRAG DISTANCE</label>
-            <div class="input-row">
-              <input type="number" id="rulerInches" value="1" min="0.5" max="12" step="0.1" />
-              <span class="input-unit">inch</span>
+      <div class="calibration-layout">
+
+        <aside class="cal-sidebar">
+          <div class="metric-card glow-card">
+            <div class="metric-label">CALCULATED DPI</div>
+            <div class="metric-value" id="dpiValue" aria-live="polite" aria-atomic="true">—</div>
+            <div class="metric-unit">DPI</div>
+            <div class="metric-sub" id="dpiSub">Run calibration to measure</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">PIXELS MOVED</div>
+            <div class="metric-value" id="pixelsMoved" aria-live="polite">—</div>
+            <div class="metric-unit">px</div>
+            <div class="metric-sub">Last drag</div>
+          </div>
+
+          <div class="input-group">
+            <label for="physicalDist">DRAG DISTANCE</label>
+            <div class="unit-input-row">
+              <input type="number" id="physicalDist" value="1.00" min="0.1" max="30" step="0.01" aria-describedby="physDistHelp" />
+              <div class="unit-toggle" role="group" aria-label="Distance unit">
+                <button class="unit-btn active" data-unit="in"  aria-pressed="true">in</button>
+                <button class="unit-btn"        data-unit="cm"  aria-pressed="false">cm</button>
+                <button class="unit-btn"        data-unit="mm"  aria-pressed="false">mm</button>
+              </div>
+            </div>
+            <small id="physDistHelp" class="input-help">Measure your drag distance with a ruler, then enter it here</small>
+          </div>
+
+          <button class="primary-btn" id="resetCalibration" aria-label="Reset calibration data">RESET</button>
+
+          <ol class="cal-instructions" aria-label="How to calibrate">
+            <li class="inst-step"><span class="step-num" aria-hidden="true">01</span><span>Place a ruler next to your mouse pad</span></li>
+            <li class="inst-step"><span class="step-num" aria-hidden="true">02</span><span>Click and drag exactly the distance entered above</span></li>
+            <li class="inst-step"><span class="step-num" aria-hidden="true">03</span><span>Release to calculate DPI</span></li>
+            <li class="inst-step"><span class="step-num" aria-hidden="true">04</span><span>Repeat 3× and average for best accuracy</span></li>
+          </ol>
+
+          <!-- Diagonal warning -->
+          <div class="diag-warning" id="diagWarning" hidden role="alert">
+            <span>⚠</span> Diagonal drag detected. For accurate results, drag <strong>horizontally</strong>.
+          </div>
+        </aside>
+
+        <div class="cal-main">
+          <!-- Visual ruler with tick marks -->
+          <div class="ruler-strip" id="rulerStrip" aria-hidden="true">
+            <canvas id="rulerCanvas"></canvas>
+          </div>
+
+          <div class="drag-zone" id="dpiDragZone" tabindex="0"
+               role="region" aria-label="DPI calibration drag zone — click and drag to calibrate">
+            <canvas id="dpiCanvas" aria-label="DPI calibration visual"></canvas>
+            <div class="drag-overlay" id="dragOverlay">
+              <span class="drag-label" id="dragLabel">CLICK &amp; DRAG TO CALIBRATE</span>
             </div>
           </div>
-          <button class="btn-primary" id="btnStartCalib">START CALIBRATION</button>
-        </div>
 
-        <div class="calib-active" id="calibActive" hidden>
-          <div class="calib-track-area" id="calibTrackArea">
-            <div class="calib-start-marker" id="calibStart"></div>
-            <div class="calib-end-marker"   id="calibEnd"  ></div>
-            <div class="calib-line"         id="calibLine" ></div>
-            <div class="calib-hint">CLICK & DRAG →</div>
+          <div class="dpi-result-bar" id="dpiResultBar" role="status" aria-live="polite">
+            Waiting for calibration drag…
           </div>
-          <button class="btn-secondary" id="btnCancelCalib">CANCEL</button>
-        </div>
 
-        <div class="calib-result" id="calibResult" hidden>
-          <div class="result-icon">✓</div>
-          <div class="result-label">MEASURED DPI</div>
-          <div class="result-value" id="calibResultValue">—</div>
-          <div class="result-sub" id="calibResultSub"></div>
-          <div class="result-actions">
-            <button class="btn-primary"   id="btnAcceptCalib">ACCEPT</button>
-            <button class="btn-secondary" id="btnRetryCalib" >RETRY</button>
-          </div>
+          <!-- History of last 3 results -->
+          <div class="dpi-history" id="dpiHistory" aria-label="Recent calibration results"></div>
         </div>
 
       </div>
+
     </section>
 
-    <!-- SECTION: JITTER PLOT -->
-    <section class="section" id="sec-jitter">
-      <div class="jitter-wrapper">
+    <!-- ── JITTER PLOT PANEL ───────────────────────────────── -->
+    <section class="tab-panel" id="tab-jitter" role="tabpanel" aria-labelledby="tab-btn-jitter" hidden>
 
-        <div class="jitter-controls">
-          <div class="control-group">
-            <label>TRAIL LENGTH</label>
-            <input type="range" id="trailLength" min="50" max="500" value="200" />
-            <span id="trailLengthVal">200</span>
-          </div>
-          <div class="control-group">
-            <label>ZOOM</label>
-            <input type="range" id="jitterZoom" min="1" max="20" value="8" />
-            <span id="jitterZoomVal">8×</span>
-          </div>
-          <div class="control-group">
-            <label>MODE</label>
-            <button class="btn-toggle active" id="toggleMode" data-mode="scatter">SCATTER</button>
-          </div>
-          <button class="btn-secondary" id="btnClearJitter">CLEAR</button>
-        </div>
+      <div class="jitter-layout">
 
-        <div class="jitter-canvas-wrapper">
-          <canvas id="jitterCanvas"></canvas>
-          <div class="jitter-overlay-stats">
-            <span id="jOverlayHz">— Hz</span>
-            <span id="jOverlayJitter">± — px</span>
+        <aside class="jitter-sidebar">
+          <div class="metric-card glow-card">
+            <div class="metric-label">JITTER RMS</div>
+            <div class="metric-value" id="jitterRms" aria-live="polite">—</div>
+            <div class="metric-unit">px</div>
+            <div class="metric-sub">Root mean square deviation</div>
           </div>
-        </div>
+          <div class="metric-card">
+            <div class="metric-label">MAX DEVIATION</div>
+            <div class="metric-value" id="jitterMax" aria-live="polite">—</div>
+            <div class="metric-unit">px</div>
+            <div class="metric-sub">From ideal path</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">SMOOTHNESS</div>
+            <div class="metric-value" id="jitterSmooth" aria-live="polite">—</div>
+            <div class="metric-unit">%</div>
+            <div class="metric-sub">Path quality score</div>
+          </div>
 
-        <div class="jitter-legend">
-          <span class="legend-dot recent"></span>RECENT
-          <span class="legend-dot old"></span>HISTORY
-          <span class="legend-dot center"></span>CENTROID
+          <div class="jitter-controls">
+            <div class="control-row">
+              <label for="jitterTrails">TRAIL LENGTH</label>
+              <div class="slider-row">
+                <input type="range" id="jitterTrails" min="50" max="500" value="200" aria-valuemin="50" aria-valuemax="500" aria-valuenow="200" />
+                <span id="jitterTrailsVal" aria-live="polite">200</span>
+              </div>
+            </div>
+            <div class="control-row">
+              <label for="jitterZoom">ZOOM</label>
+              <div class="slider-row">
+                <input type="range" id="jitterZoom" min="1" max="10" value="3" step="0.5" aria-valuemin="1" aria-valuemax="10" aria-valuenow="3" />
+                <span id="jitterZoomVal" aria-live="polite">3×</span>
+              </div>
+            </div>
+            <label class="toggle-label">
+              <input type="checkbox" id="showIdeal" checked />
+              <span class="toggle-track" aria-hidden="true"></span>
+              SHOW IDEAL PATH
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="showHeatmap" />
+              <span class="toggle-track" aria-hidden="true"></span>
+              DEVIATION HEATMAP
+            </label>
+          </div>
+
+          <button class="primary-btn" id="clearJitter" aria-label="Clear jitter plot">CLEAR PLOT</button>
+        </aside>
+
+        <div class="jitter-main">
+          <div class="jitter-hint" id="jitterHint" role="status">
+            Move your mouse slowly in a straight line across the zone below to visualize sensor deviation.
+          </div>
+          <div class="jitter-zone" id="jitterZone" tabindex="0"
+               role="region" aria-label="Jitter visualization zone — move your mouse here in a straight line">
+            <canvas id="jitterCanvas" aria-label="Sensor jitter scatter plot"></canvas>
+          </div>
+          <div class="jitter-legend" aria-label="Plot legend">
+            <span class="legend-item"><span class="legend-dot cyan" aria-hidden="true"></span>ACTUAL PATH</span>
+            <span class="legend-item"><span class="legend-dot white" aria-hidden="true"></span>IDEAL LINE</span>
+            <span class="legend-item"><span class="legend-dot red" aria-hidden="true"></span>HIGH DEVIATION</span>
+          </div>
         </div>
 
       </div>
+
+    </section>
+
+    <!-- ── ABOUT / CONTENT PANEL ───────────────────────────── -->
+    <section class="tab-panel" id="tab-about" role="tabpanel" aria-labelledby="tab-btn-about" hidden>
+      <article class="about-content">
+
+        <header class="about-header">
+          <h1>What is DPI Metrics?</h1>
+          <p class="about-lead">DPI Metrics is a free browser-based tool that lets you measure the real-world performance of any computer mouse — no software to install, no account required. All processing happens locally in your browser.</p>
+        </header>
+
+        <section class="about-section">
+          <h2>What is Mouse Polling Rate (Hz)?</h2>
+          <p>Polling rate is how frequently your mouse reports its position to your computer, measured in Hertz (Hz). A 125 Hz mouse sends position updates 125 times per second; a 1000 Hz mouse sends 1000. Higher polling rates mean lower input latency and smoother cursor tracking — critical in competitive gaming where 1 ms can matter.</p>
+          <p>Most gaming mice today offer 125 Hz, 500 Hz, or 1000 Hz polling rates. Some flagship mice now reach 4000 Hz or even 8000 Hz, though diminishing returns set in above 1000 Hz for most use cases.</p>
+          <div class="about-table-wrapper">
+            <table class="about-table" aria-label="Polling rate comparison">
+              <thead>
+                <tr><th>Polling Rate</th><th>Interval</th><th>Typical Use</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>125 Hz</td><td>8 ms</td><td>Budget / office mice</td></tr>
+                <tr><td>250 Hz</td><td>4 ms</td><td>Mid-range gaming</td></tr>
+                <tr><td>500 Hz</td><td>2 ms</td><td>High-end gaming</td></tr>
+                <tr><td>1000 Hz</td><td>1 ms</td><td>Competitive gaming (standard)</td></tr>
+                <tr><td>4000+ Hz</td><td>0.25 ms</td><td>Enthusiast / flagship</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="about-section">
+          <h2>What is Mouse DPI?</h2>
+          <p>DPI stands for Dots Per Inch — it measures how many pixels your cursor moves on screen for every physical inch your mouse moves. A mouse set to 800 DPI will move the cursor 800 pixels for every inch of physical movement. Higher DPI = more sensitive, faster cursor. Lower DPI = more precise, slower cursor.</p>
+          <p>The "best" DPI is personal preference, but most professional FPS gamers prefer 400–800 DPI combined with a high in-game sensitivity multiplier, as it reduces sensor noise and jitter. The DPI Calibration tab lets you measure your mouse's actual DPI — not just what the software claims.</p>
+        </section>
+
+        <section class="about-section">
+          <h2>What is Sensor Jitter?</h2>
+          <p>Jitter is the small, random deviations in your mouse's reported position that don't correspond to your actual hand movement. It's caused by the optical sensor's noise floor, the surface texture, and the sensor's firmware smoothing algorithms. The Jitter Plot tab visualizes this by measuring how much your actual path deviates from the ideal straight line you intended to draw.</p>
+          <p>Lower jitter means more precise tracking. This is measured as RMS (root mean square) deviation in pixels. Under 0.5px RMS is excellent; above 2px suggests either a poor surface or sensor acceleration issues.</p>
+        </section>
+
+        <section class="about-section">
+          <h2>Browser Measurement Limitations</h2>
+          <p>This tool uses the Web <code>PointerEvent</code> API with <code>getCoalescedEvents()</code> where available (Chromium 58+, Firefox 59+) to access intermediate mouse samples between display frames. Without it, browsers coalesce events to the display refresh rate, which means a 1000 Hz mouse may appear to report at ~240 Hz on a 240 Hz monitor. For true hardware-level polling verification, a native OS tool is needed — but this tool is the most accurate browser-based measurement available.</p>
+        </section>
+
+        <section class="about-section">
+          <h2>Privacy</h2>
+          <p>All mouse data is processed entirely in your browser's memory using JavaScript. No coordinates, timings, or any other data are ever transmitted to a server. The source code is straightforward and auditable.</p>
+        </section>
+
+      </article>
     </section>
 
   </main>
 
+  <!-- ── BOTTOM NAV (mobile only) ───────────────────────────── -->
+  <nav class="bottom-nav" role="tablist" aria-label="Tool sections (mobile)">
+    <button class="bottom-tab active" role="tab" data-tab="polling" aria-selected="true">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="1" y="10" width="2" height="7" rx="1" fill="currentColor"/><rect x="5" y="7" width="2" height="10" rx="1" fill="currentColor"/><rect x="9" y="4" width="2" height="13" rx="1" fill="currentColor"/><rect x="13" y="1" width="2" height="16" rx="1" fill="currentColor"/></svg>
+      <span>POLLING</span>
+    </button>
+    <button class="bottom-tab" role="tab" data-tab="dpi" aria-selected="false">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9" r="3" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="2" x2="9" y2="5" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span>DPI</span>
+    </button>
+    <button class="bottom-tab" role="tab" data-tab="jitter" aria-selected="false">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 12 Q5 7 8 9 Q11 11 14 6 L16 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+      <span>JITTER</span>
+    </button>
+    <button class="bottom-tab" role="tab" data-tab="about" aria-selected="false">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M9 8v5M9 6v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span>ABOUT</span>
+    </button>
+  </nav>
+
   <!-- ── FOOTER ─────────────────────────────────────────────── -->
-  <footer class="site-footer">
-    <span>DPI METRICS — BROWSER MOUSE ANALYZER</span>
-    <span class="footer-note">All processing is local. No data leaves your machine.</span>
-    <span id="footerFps">RAF: —fps</span>
+  <footer class="site-footer" role="contentinfo">
+    <span>DPI METRICS — All processing is local. No data leaves your browser.</span>
+    <span id="fpsCounter" aria-hidden="true">RAF: — fps</span>
   </footer>
 
   <script src="app.js"></script>
